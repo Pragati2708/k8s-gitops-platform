@@ -1,0 +1,8 @@
+replicaCount: 1
+
+image:
+  repository: k8s-gitops-platform-transaction-service
+  tag: latest
+
+service:
+  port: 3001

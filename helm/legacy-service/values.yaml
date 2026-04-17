@@ -1,0 +1,11 @@
+replicaCount: 1
+
+image:
+  repository: k8s-gitops-platform-legacy-service
+  tag: latest
+
+service:
+  port: 3000
+  
+autoscaling:
+  enabled: false
