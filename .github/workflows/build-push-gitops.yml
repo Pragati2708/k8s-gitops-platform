@@ -1,0 +1,135 @@
+name: Build Push GitOps
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "legacy-service/**"
+      - "transaction-service/**"
+      - "notification-service/**"
+      - ".github/workflows/build-push-gitops.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-south-1
+  AWS_ACCOUNT_ID: "779846808506"
+  GITOPS_REPOSITORY: Pragati2708/k8s-gitops-config
+
+jobs:
+  build-push-update-gitops:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout platform repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed services
+        id: changes
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          all_services="frontend legacy-service transaction-service notification-service"
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            services="$all_services"
+          else
+            changed_files="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
+            services=""
+
+            if echo "$changed_files" | grep -q '^.github/workflows/build-push-gitops.yml$'; then
+              services="$all_services"
+            else
+              for service in $all_services; do
+                if echo "$changed_files" | grep -q "^$service/"; then
+                  services="$services $service"
+                fi
+              done
+            fi
+          fi
+
+          services="$(echo "$services" | xargs)"
+          echo "services=$services" >> "$GITHUB_OUTPUT"
+          echo "Changed services: ${services:-none}"
+
+      - name: Validate Node services
+        if: steps.changes.outputs.services != ''
+        env:
+          CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
+        run: |
+          for service in $CHANGED_SERVICES; do
+            npm ci --prefix "$service"
+            npm test --prefix "$service" --if-present
+          done
+
+      - name: Configure AWS credentials
+        if: steps.changes.outputs.services != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: steps.changes.outputs.services != ''
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push service images
+        if: steps.changes.outputs.services != ''
+        env:
+          CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
+          ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          for service in $CHANGED_SERVICES; do
+            docker build \
+              --tag "$ECR_REGISTRY/$service:$IMAGE_TAG" \
+              --tag "$ECR_REGISTRY/$service:latest" \
+              "$service"
+            docker push "$ECR_REGISTRY/$service:$IMAGE_TAG"
+            docker push "$ECR_REGISTRY/$service:latest"
+          done
+
+      - name: Checkout GitOps repo
+        if: steps.changes.outputs.services != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPOSITORY }}
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: gitops-config
+
+      - name: Update GitOps image tags
+        if: steps.changes.outputs.services != ''
+        working-directory: gitops-config
+        env:
+          CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          for service in $CHANGED_SERVICES; do
+            sed -i "s|tag: .*|tag: \"$IMAGE_TAG\"|" "$service/values.yaml"
+          done
+
+      - name: Commit GitOps changes
+        if: steps.changes.outputs.services != ''
+        working-directory: gitops-config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            frontend/values.yaml \
+            legacy-service/values.yaml \
+            transaction-service/values.yaml \
+            notification-service/values.yaml                        
+          if git diff --cached --quiet; then
+            echo "No GitOps image tag changes to commit."
+          else
+            git commit -m "Update image tags to ${GITHUB_SHA}"
+            git push
+          fi

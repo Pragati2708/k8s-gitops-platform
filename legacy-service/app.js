@@ -3,6 +3,10 @@ const app = express();
 
 app.use(express.json());
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'legacy-service' });
+});
+
 // Simulated DB (like DB2)
 let accounts = {
   "1001": { name: "Pragati Singh", balance: 5000 },
