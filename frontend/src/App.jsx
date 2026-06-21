@@ -1,27 +1,29 @@
+import { useState } from "react";
 import "./App.css";
 
 function App() {
 
-  const services = [
-    {
-      name: "Legacy Service",
-      status: "Healthy",
-      replicas: "2/2",
-      tech: "Java API"
-    },
-    {
-      name: "Transaction Service",
-      status: "Healthy",
-      replicas: "2/2",
-      tech: "REST API"
-    },
-    {
-      name: "Notification Service",
-      status: "Healthy",
-      replicas: "2/2",
-      tech: "Event Service"
+  const [response, setResponse] = useState("");
+
+  const callApi = async (url) => {
+
+    try {
+
+      const res = await fetch(url);
+
+      const data = await res.json();
+
+      setResponse(
+        JSON.stringify(data, null, 2)
+      );
+
+    } catch (error) {
+
+      setResponse(
+        "API Error: " + error.message
+      );
     }
-  ];
+  };
 
 
   return (
@@ -50,23 +52,69 @@ function App() {
 
       <div className="cards">
 
-        {services.map((service) => (
 
-          <div className="card">
+        <div className="card">
 
-            <h2>{service.name}</h2>
+          <h2>Legacy Service</h2>
 
-            <p>🟢 {service.status}</p>
+          <p>Core Banking API</p>
 
-            <p>Replicas: {service.replicas}</p>
+          <button
+            onClick={() =>
+              callApi("/api/legacy/balance/1001")
+            }
+          >
+            Check Balance
+          </button>
 
-            <p>{service.tech}</p>
+        </div>
 
-          </div>
 
-        ))}
+
+        <div className="card">
+
+          <h2>Transaction Service</h2>
+
+          <p>Transaction API</p>
+
+          <button
+            onClick={() =>
+              callApi("/api/transactions/health")
+            }
+          >
+            Check Transaction
+          </button>
+
+        </div>
+
+
+
+        <div className="card">
+
+          <h2>Notification Service</h2>
+
+          <p>Notification API</p>
+
+          <button
+            onClick={() =>
+              callApi("/api/notifications/health")
+            }
+          >
+            Check Notification
+          </button>
+
+        </div>
+
 
       </div>
+
+
+      <h2>API Response</h2>
+
+      <pre>
+        {response}
+      </pre>
+
 
 
       <div className="footer">
@@ -80,5 +128,6 @@ function App() {
 
   );
 }
+
 
 export default App;
