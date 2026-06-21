@@ -3,11 +3,11 @@ const app = express();
 
 app.use(express.json());
 
-app.get('/health', (req, res) => {
+app.get('/api/notifications/health', (req, res) => {
   res.json({ status: 'ok', service: 'notification-service' });
 });
 
-app.post('/notify', (req, res) => {
+app.post('/api/notifications/notify', (req, res) => {
   const { message } = req.body;
 
   console.log("📩 Notification:", message);

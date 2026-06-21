@@ -7,11 +7,11 @@ app.use(express.json());
 const LEGACY_URL = process.env.LEGACY_URL || "http://legacy-service:3000";
 const NOTIFICATION_URL = process.env.NOTIFICATION_URL || "http://notification-service:3002";
 
-app.get('/health', (req, res) => {
+app.get('/api/transactions/health', (req,res)=>{
   res.json({ status: 'ok', service: 'transaction-service' });
 });
 
-app.post('/transfer', async (req, res) => {
+app.post('/api/transactions/transfer', async (req, res) => {
   const { from, to, amount } = req.body;
 
   try {
