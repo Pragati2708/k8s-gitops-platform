@@ -14,7 +14,7 @@ let accounts = {
 };
 
 // Check balance
-app.get('/balance/:id', (req, res) => {
+app.get('/api/legacy/balance/:id', (req, res) => {
   const acc = accounts[req.params.id];
 
   if (!acc) {
@@ -29,7 +29,7 @@ app.get('/balance/:id', (req, res) => {
 });
 
 // Debit money
-app.post('/debit', (req, res) => {
+app.post('/api/legacy/debit', (req, res) => {
   const { id, amount } = req.body;
 
   if (!accounts[id]) {
@@ -48,7 +48,7 @@ app.post('/debit', (req, res) => {
 });
 
 // Credit money
-app.post('/credit', (req, res) => {
+app.post('/api/legacy/credit', (req, res) => {
   const { id, amount } = req.body;
 
   if (!accounts[id]) {
