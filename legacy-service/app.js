@@ -40,6 +40,10 @@ app.post('/api/legacy/debit', (req, res) => {
     return res.status(400).send("Insufficient funds");
   }
 
+  if (!id || !amount || amount <= 0) {
+  return res.status(400).send("Invalid debit request");
+}
+
   accounts[id].balance -= amount;
 
   console.log(`Debited ₹${amount} from ${accounts[id].name}`);
@@ -54,6 +58,9 @@ app.post('/api/legacy/credit', (req, res) => {
   if (!accounts[id]) {
     return res.status(404).send("Account not found");
   }
+  if (!id || !amount || amount <= 0) {
+  return res.status(400).send("Invalid credit request");
+}
 
   accounts[id].balance += amount;
 
