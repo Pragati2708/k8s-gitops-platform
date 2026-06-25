@@ -33,33 +33,36 @@ jobs:
 
       - name: Detect changed services
         id: changes
-        env:
-          BEFORE_SHA: ${{ github.event.before }}
-          CURRENT_SHA: ${{ github.sha }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           all_services="frontend legacy-service transaction-service notification-service"
 
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             services="$all_services"
           else
-            changed_files="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
+
+            changed_files=$(git diff --name-only HEAD~1 HEAD)
+
             services=""
 
-            if echo "$changed_files" | grep -q '^.github/workflows/build-push-gitops.yml$'; then
+            if echo "$changed_files" | grep -q ".github/workflows/build-push-gitops.yml"; then
               services="$all_services"
             else
-              for service in $all_services; do
-                if echo "$changed_files" | grep -q "^$service/"; then
+              for service in $all_services
+              do
+                if echo "$changed_files" | grep -q "^$service/"
+                then
                   services="$services $service"
                 fi
               done
             fi
+
           fi
 
-          services="$(echo "$services" | xargs)"
-          echo "services=$services" >> "$GITHUB_OUTPUT"
-          echo "Changed services: ${services:-none}"
+          services=$(echo "$services" | xargs)
+
+          echo "services=$services" >> $GITHUB_OUTPUT
+
+          echo "Changed services: $services"
 
       - name: Validate Node services
         if: steps.changes.outputs.services != ''
@@ -82,7 +85,7 @@ jobs:
         if: steps.changes.outputs.services != ''
         uses: aws-actions/amazon-ecr-login@v2
 
-       - name: Build and push service images
+      - name: Build and push service images
         if: steps.changes.outputs.services != ''
         env:
           CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
@@ -133,7 +136,7 @@ jobs:
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops-config
 
-            - name: Update GitOps image tags
+      - name: Update GitOps image tags
         if: steps.changes.outputs.services != ''
         working-directory: gitops-config
         run: |
