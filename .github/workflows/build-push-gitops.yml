@@ -82,20 +82,47 @@ jobs:
         if: steps.changes.outputs.services != ''
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push service images
+       - name: Build and push service images
         if: steps.changes.outputs.services != ''
         env:
           CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
           ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          IMAGE_TAG: ${{ github.sha }}
         run: |
+          rm -f image-tags.txt
+
           for service in $CHANGED_SERVICES; do
+
+            echo "Checking latest version for $service"
+
+            LAST_VERSION=$(aws ecr describe-images \
+              --repository-name $service \
+              --query 'imageDetails[].imageTags[]' \
+              --output text \
+              | grep -o 'v[0-9]*' \
+              | sed 's/v//' \
+              | sort -n \
+              | tail -1)
+
+            if [ -z "$LAST_VERSION" ]; then
+              NEXT_VERSION=1
+            else
+              NEXT_VERSION=$((LAST_VERSION + 1))
+            fi
+
+            IMAGE_TAG="v${NEXT_VERSION}"
+
+            echo "$service -> $IMAGE_TAG"
+
             docker build \
               --tag "$ECR_REGISTRY/$service:$IMAGE_TAG" \
               --tag "$ECR_REGISTRY/$service:latest" \
               "$service"
+
             docker push "$ECR_REGISTRY/$service:$IMAGE_TAG"
             docker push "$ECR_REGISTRY/$service:latest"
+
+            echo "$service=$IMAGE_TAG" >> image-tags.txt
+
           done
 
       - name: Checkout GitOps repo
@@ -106,16 +133,20 @@ jobs:
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops-config
 
-      - name: Update GitOps image tags
+            - name: Update GitOps image tags
         if: steps.changes.outputs.services != ''
         working-directory: gitops-config
-        env:
-          CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          for service in $CHANGED_SERVICES; do
-            sed -i "s|tag: .*|tag: \"$IMAGE_TAG\"|" "$service/values.yaml"
-          done
+          cp ../image-tags.txt .
+
+          while IFS="=" read service tag
+          do
+            echo "Updating $service with $tag"
+
+            sed -i "s|tag: .*|tag: \"$tag\"|" \
+            "$service/values.yaml"
+
+          done < image-tags.txt
 
       - name: Commit GitOps changes
         if: steps.changes.outputs.services != ''
