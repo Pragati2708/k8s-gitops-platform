@@ -3,7 +3,7 @@ const app = express();
 
 app.use(express.json());
 
-app.get('/api/notifications/health', (req, res) => {
+app.get('/health', (req,res)=>{
   res.json({ status: 'ok', service: 'notification-service' });
 });
 
