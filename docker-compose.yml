@@ -2,18 +2,18 @@ version: '3'
 
 services:
   legacy-service:
-    build: ./legacy-service
+    build: ./apps/legacy-service
     ports:
       - "3000:3000"
 
   transaction-service:
-    build: ./transaction-service
+    build: ./apps/transaction-service
     ports:
       - "3001:3001"
     depends_on:
       - legacy-service
 
   notification-service:
-    build: ./notification-service
+    build: ./apps/notification-service
     ports:
       - "3002:3002"

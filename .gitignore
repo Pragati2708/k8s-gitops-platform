@@ -7,11 +7,21 @@
 node_modules/
 dist/
 coverage/
+apps/*/node_modules/
+apps/*/dist/
 
 # Local environment files
 .env
 .env.*
 !.env.example
+
+# Terraform local working data and state copies
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+crash.log
+crash.*.log
 
 # Logs
 logs/

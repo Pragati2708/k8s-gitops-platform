@@ -5,10 +5,10 @@ on:
     branches:
       - main
     paths:
-      - "frontend/**"
-      - "legacy-service/**"
-      - "transaction-service/**"
-      - "notification-service/**"
+      - "apps/frontend/**"
+      - "apps/legacy-service/**"
+      - "apps/transaction-service/**"
+      - "apps/notification-service/**"
       - ".github/workflows/build-push-gitops.yml"
   workflow_dispatch:
 
@@ -49,7 +49,7 @@ jobs:
             else
               for service in $all_services
               do
-                if echo "$changed_files" | grep -q "^$service/"
+                if echo "$changed_files" | grep -q "^apps/$service/"
                 then
                   services="$services $service"
                 fi
@@ -70,8 +70,8 @@ jobs:
           CHANGED_SERVICES: ${{ steps.changes.outputs.services }}
         run: |
           for service in $CHANGED_SERVICES; do
-            npm ci --prefix "$service"
-            npm test --prefix "$service" --if-present
+            npm ci --prefix "apps/$service"
+            npm test --prefix "apps/$service" --if-present
           done
 
       - name: Configure AWS credentials
@@ -119,7 +119,7 @@ jobs:
             docker build \
               --tag "$ECR_REGISTRY/$service:$IMAGE_TAG" \
               --tag "$ECR_REGISTRY/$service:latest" \
-              "$service"
+              "apps/$service"
 
             docker push "$ECR_REGISTRY/$service:$IMAGE_TAG"
             docker push "$ECR_REGISTRY/$service:latest"
